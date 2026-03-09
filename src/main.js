@@ -108,7 +108,7 @@ class MiniGraphCard extends LitElement {
     if (!this.Graph || entitiesChanged) {
       if (this._hass) this.hass = this._hass;
       this.Graph = this.config.entities.map(
-        entity => new Graph(
+        (entity, index) => new Graph(
           500,
           this.config.height,
           [this.config.show.fill ? 0 : this.config.line_width, this.config.line_width],
@@ -121,7 +121,7 @@ class MiniGraphCard extends LitElement {
             this.config.smoothing,
             !entity.entity.startsWith('binary_sensor.'), // turn off for binary sensor by default
           ),
-          this.config.logarithmic,
+          this.entityUsesLogarithmic(index),
         ),
       );
     }
@@ -646,6 +646,14 @@ class MiniGraphCard extends LitElement {
     return this.config.entities.filter(entity => entity.show_graph !== false);
   }
 
+  entityUsesLogarithmic(index) {
+    return getFirstDefinedItem(
+      this.config.entities[index].logarithmic,
+      this.config.logarithmic,
+      false,
+    );
+  }
+
   get primaryYaxisEntities() {
     return this.visibleEntities.filter(entity => entity.y_axis === undefined
       || entity.y_axis === 'primary');
@@ -796,6 +804,7 @@ class MiniGraphCard extends LitElement {
       let graphPos = 0;
       this.entity.forEach((entity, i) => {
         if (!entity || this.Graph[i].coords.length === 0) return;
+        this.Graph[i].logarithmic = this.entityUsesLogarithmic(i);
         const bound = config.entities[i].y_axis === 'secondary' ? this.boundSecondary : this.bound;
         [this.Graph[i].min, this.Graph[i].max] = [bound[0], bound[1]];
         if (config.show.graph === 'bar') {
@@ -811,9 +820,7 @@ class MiniGraphCard extends LitElement {
             this.points[i] = this.Graph[i].getPoints();
           }
           if (config.color_thresholds.length > 0 && !config.entities[i].color)
-            this.gradient[i] = this.Graph[i].computeGradient(
-              config.color_thresholds, this.config.logarithmic,
-            );
+            this.gradient[i] = this.Graph[i].computeGradient(config.color_thresholds);
         }
       });
       this.line = [...this.line];
